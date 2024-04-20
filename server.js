@@ -5,9 +5,23 @@ const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
 const chalk = require("chalk");
 const cors = require("cors");
+const http = require("http"); // Import Node's http module
+const socketIo = require("socket.io");
+const socketController = require("./socketio");
 
 const app = express();
-//Middlewares
+const server = http.createServer(app); // Wrap Express app with HTTP server
+const io = socketIo(server, {
+  cors: {
+    origin: ["https://playground.radovanrasha.com", "http://localhost:3000"],
+    methods: ["GET", "POST", "PUT"],
+    credentials: true,
+  },
+});
+
+const socketControl = socketController(io);
+
+// Middlewares
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }));
@@ -34,22 +48,12 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// //ALL ROUTES
-// const routes = {
-//   user: require("./routes/user.routes"),
-//   note: require("./routes/note.routes"),
-// };
-
-// // START ROUTES
-// routes.user(app);
-// routes.note(app);
-
 app.get("/", (req, res) => {
   res.send("Playground app api!");
 });
 
 // Connect to DB and start server
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3007;
 mongoose
   .connect("mongodb://127.0.0.1:27017/playground-app")
   .then(() => {
@@ -58,7 +62,7 @@ mongoose
         `Connected to Mongo on url mongodb://127.0.0.1:27017/playground-app`
       )
     );
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(
         chalk.italic.bgBlue.bold(
           `########## SERVER RUNNING ON PORT ${PORT} ##########`
@@ -67,5 +71,3 @@ mongoose
     });
   })
   .catch((error) => console.log(error));
-
-module.exports = app;
