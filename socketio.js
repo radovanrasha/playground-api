@@ -7,7 +7,26 @@ module.exports = function (io) {
     console.log("New client connected", socket.id);
 
     socket.on("createRoom", async (data) => {
-      const shuffledCards = [...data.cards, ...data.cards]
+      const cardImages = [
+        { src: "imageone", id: 0, matched: false },
+        { src: "imagetwo", id: 0, matched: false },
+        { src: "imagethree", id: 0, matched: false },
+        { src: "imagefour", id: 0, matched: false },
+        { src: "imagefive", id: 0, matched: false },
+        { src: "imagesix", id: 0, matched: false },
+        { src: "imageseven", id: 0, matched: false },
+        { src: "imageeight", id: 0, matched: false },
+        { src: "imageone", id: 0, matched: false },
+        { src: "imagetwo", id: 0, matched: false },
+        { src: "imagethree", id: 0, matched: false },
+        { src: "imagefour", id: 0, matched: false },
+        { src: "imagefive", id: 0, matched: false },
+        { src: "imagesix", id: 0, matched: false },
+        { src: "imageseven", id: 0, matched: false },
+        { src: "imageeight", id: 0, matched: false },
+      ];
+
+      const shuffledCards = cardImages
         .map((item, index) => (item = { ...item, id: Math.random() * 1000 }))
         .sort((a, b) => a.id - b.id);
 
@@ -22,7 +41,7 @@ module.exports = function (io) {
       }).save();
 
       socket.join(newroom._id);
-      io.sockets.emit("roomCreated", { roomId: newroom._id });
+      io.to(newroom._id).emit("roomCreated", { roomId: newroom });
     });
 
     socket.on("joinRoom", async (id) => {
@@ -75,6 +94,7 @@ module.exports = function (io) {
 
       io.sockets.emit("revealedCard", {
         src: game.cardsList[index].src,
+        id: game.cardsList[index].id,
         index,
       });
     });
