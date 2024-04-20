@@ -41,22 +41,22 @@ module.exports = function (io) {
       console.log(index);
       if (!cards) {
         const cardImages = [
-          { src: "../../card-images/imageone.png", id: 0, matched: false },
-          { src: "../../card-images/imagetwo.png", id: 0, matched: false },
-          { src: "../../card-images/imagethree.png", id: 0, matched: false },
-          { src: "../../card-images/imagefour.png", id: 0, matched: false },
-          { src: "../../card-images/imagefive.png", id: 0, matched: false },
-          { src: "../../card-images/imagesix.png", id: 0, matched: false },
-          { src: "../../card-images/imageseven.png", id: 0, matched: false },
-          { src: "../../card-images/imageeight.png", id: 0, matched: false },
-          { src: "../../card-images/imageone.png", id: 0, matched: false },
-          { src: "../../card-images/imagetwo.png", id: 0, matched: false },
-          { src: "../../card-images/imagethree.png", id: 0, matched: false },
-          { src: "../../card-images/imagefour.png", id: 0, matched: false },
-          { src: "../../card-images/imagefive.png", id: 0, matched: false },
-          { src: "../../card-images/imagesix.png", id: 0, matched: false },
-          { src: "../../card-images/imageseven.png", id: 0, matched: false },
-          { src: "../../card-images/imageeight.png", id: 0, matched: false },
+          { src: "imageone", id: 0, matched: false },
+          { src: "imagetwo", id: 0, matched: false },
+          { src: "imagethree", id: 0, matched: false },
+          { src: "imagefour", id: 0, matched: false },
+          { src: "imagefive", id: 0, matched: false },
+          { src: "imagesix", id: 0, matched: false },
+          { src: "imageseven", id: 0, matched: false },
+          { src: "imageeight", id: 0, matched: false },
+          { src: "imageone", id: 0, matched: false },
+          { src: "imagetwo", id: 0, matched: false },
+          { src: "imagethree", id: 0, matched: false },
+          { src: "imagefour", id: 0, matched: false },
+          { src: "imagefive", id: 0, matched: false },
+          { src: "imagesix", id: 0, matched: false },
+          { src: "imageseven", id: 0, matched: false },
+          { src: "imageeight", id: 0, matched: false },
         ];
 
         const shuffledCards = cardImages
