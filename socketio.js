@@ -1,5 +1,5 @@
-const MemoryGameRoom = require("./components/memorygameroom/models/memorygameroom.model");
-const MemoryGameRoomTEST = require("./components/memorygameroom/models/testmemorygameonline.model");
+const MemoryGameRoom = require("./components/memorygame/models/memorygameroom.model");
+const MemoryGameRoomTEST = require("./components/memorygame/models/testmemorygameonline.model");
 const { v4: uuidv4 } = require("uuid");
 
 module.exports = function (io) {
