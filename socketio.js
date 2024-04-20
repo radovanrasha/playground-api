@@ -41,22 +41,22 @@ module.exports = function (io) {
       console.log(index);
       if (!cards) {
         const cardImages = [
-          { src: "./assets/imageone.png", id: 0, matched: false },
-          { src: "./assets/imagetwo.png", id: 0, matched: false },
-          { src: "./assets/imagethree.png", id: 0, matched: false },
-          { src: "./assets/imagefour.png", id: 0, matched: false },
-          { src: "./assets/imagefive.png", id: 0, matched: false },
-          { src: "./assets/imagesix.png", id: 0, matched: false },
-          { src: "./assets/imageseven.png", id: 0, matched: false },
-          { src: "./assets/imageeight.png", id: 0, matched: false },
-          { src: "./assets/imageone.png", id: 0, matched: false },
-          { src: "./assets/imagetwo.png", id: 0, matched: false },
-          { src: "./assets/imagethree.png", id: 0, matched: false },
-          { src: "./assets/imagefour.png", id: 0, matched: false },
-          { src: "./assets/imagefive.png", id: 0, matched: false },
-          { src: "./assets/imagesix.png", id: 0, matched: false },
-          { src: "./assets/imageseven.png", id: 0, matched: false },
-          { src: "./assets/imageeight.png", id: 0, matched: false },
+          { src: "../../card-images/imageone.png", id: 0, matched: false },
+          { src: "../../card-images/imagetwo.png", id: 0, matched: false },
+          { src: "../../card-images/imagethree.png", id: 0, matched: false },
+          { src: "../../card-images/imagefour.png", id: 0, matched: false },
+          { src: "../../card-images/imagefive.png", id: 0, matched: false },
+          { src: "../../card-images/imagesix.png", id: 0, matched: false },
+          { src: "../../card-images/imageseven.png", id: 0, matched: false },
+          { src: "../../card-images/imageeight.png", id: 0, matched: false },
+          { src: "../../card-images/imageone.png", id: 0, matched: false },
+          { src: "../../card-images/imagetwo.png", id: 0, matched: false },
+          { src: "../../card-images/imagethree.png", id: 0, matched: false },
+          { src: "../../card-images/imagefour.png", id: 0, matched: false },
+          { src: "../../card-images/imagefive.png", id: 0, matched: false },
+          { src: "../../card-images/imagesix.png", id: 0, matched: false },
+          { src: "../../card-images/imageseven.png", id: 0, matched: false },
+          { src: "../../card-images/imageeight.png", id: 0, matched: false },
         ];
 
         const shuffledCards = cardImages
@@ -73,7 +73,10 @@ module.exports = function (io) {
 
       const game = await MemoryGameRoomTEST.findOne();
 
-      io.sockets.emit("revealedCard", { src: game.cardsList[index], index });
+      io.sockets.emit("revealedCard", {
+        src: game.cardsList[index].src,
+        index,
+      });
     });
 
     socket.on("disconnect", () => {
