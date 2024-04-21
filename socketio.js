@@ -26,6 +26,9 @@ module.exports = function (io) {
         { src: "imageeight", id: 0, matched: false },
       ];
 
+      console.log("eeeeeeeee");
+      console.log("roooooooooms", socket.rooms);
+
       const shuffledCards = cardImages
         .map((item, index) => (item = { ...item, id: Math.random() * 1000 }))
         .sort((a, b) => a.id - b.id);
@@ -40,8 +43,8 @@ module.exports = function (io) {
         status: "waiting",
       }).save();
 
-      socket.join(newroom._id);
-      io.emit("roomCreated", { roomId: newroom._id });
+      socket.join(newroom._id.toString());
+      io.to(newroom._id).emit("roomCreated", { roomId: newroom._id });
 
       let rooms = await MemoryGameRoom.find({ status: "waiting" })
         .select("_id title")
@@ -59,19 +62,21 @@ module.exports = function (io) {
     });
 
     socket.on("joinRoom", async (id) => {
-      socket.join(id);
-
+      socket.join(id.toString());
       await MemoryGameRoom.findByIdAndUpdate(
         { _id: id },
         { $set: { status: "ongoing" } }
       );
-
-      io.sockets.emit("roomJoined", { roomId: newroom._id });
+      console.log("eeeeeeeee");
+      console.log("roooooooooms", socket.rooms);
+      io.to(id.toString()).emit("roomJoined", { id: id.toString() });
     });
 
     socket.on("revealCard", async ({ index, id }) => {
-      const room = await MemoryGameRoom.find({ _id: id });
+      socket.join(id.toString());
+      const room = await MemoryGameRoom.findById({ _id: id });
 
+      // console.log(room.cardsList[index]);
       io.to(id).emit("revealedCard", { src: room.cardsList[index], index });
     });
 
