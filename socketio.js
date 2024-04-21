@@ -42,6 +42,20 @@ module.exports = function (io) {
 
       socket.join(newroom._id);
       io.to(newroom._id).emit("roomCreated", { roomId: newroom });
+
+      const rooms = await MemoryGameRoom.find({ status: "waiting" }).select(
+        "_id title"
+      );
+
+      io.emit("freeRooms", rooms);
+    });
+
+    socket.on("getFreeRooms", async () => {
+      const rooms = await MemoryGameRoom.find({ status: "waiting" }).select(
+        "_id title"
+      );
+
+      io.emit("freeRooms", rooms);
     });
 
     socket.on("joinRoom", async (id) => {
