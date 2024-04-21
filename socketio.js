@@ -68,7 +68,11 @@ module.exports = function (io) {
         { $set: { status: "ongoing" } }
       );
 
+      const game = await MemoryGameRoom.findByIdAndUpdate({ _id: id });
+
       io.to(id.toString()).emit("roomJoined", { id: id.toString() });
+
+      io.to(id.toString()).emit("gameInfo", { game });
     });
 
     socket.on("revealCard", async ({ index, id }) => {
