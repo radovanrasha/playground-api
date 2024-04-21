@@ -82,7 +82,7 @@ module.exports = function (io) {
     socket.on("getGameInfo", async (id) => {
       const game = await MemoryGameRoom.findByIdAndUpdate({ _id: id });
 
-      io.to(id.toString()).emit("gameInfo", { ...game });
+      io.to(id.toString()).emit("gameInfo", { game });
     });
 
     socket.on("disconnect", () => {
