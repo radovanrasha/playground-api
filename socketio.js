@@ -41,11 +41,11 @@ module.exports = function (io) {
       }).save();
 
       socket.join(newroom._id);
-      io.to(newroom._id).emit("roomCreated", { roomId: newroom });
+      io.to(newroom._id).emit("roomCreated", { roomId: newroom._id });
 
-      const rooms = await MemoryGameRoom.find({ status: "waiting" }).select(
-        "_id title"
-      );
+      let rooms = await MemoryGameRoom.find({ status: "waiting" })
+        .select("_id title")
+        .sort({ createdAt: -1 });
 
       io.emit("freeRooms", rooms);
     });
