@@ -41,7 +41,7 @@ module.exports = function (io) {
       }).save();
 
       socket.join(newroom._id);
-      io.to(newroom._id).emit("roomCreated", { roomId: newroom._id });
+      io.emit("roomCreated", { roomId: newroom._id });
 
       let rooms = await MemoryGameRoom.find({ status: "waiting" })
         .select("_id title")
