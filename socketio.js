@@ -42,15 +42,16 @@ module.exports = function (io) {
         nextTurn: "firstPlayer",
         status: "waiting",
       }).save();
-
       socket.join(newroom._id.toString());
-      io.to(newroom._id).emit("roomCreated", { roomId: newroom._id });
 
       let rooms = await MemoryGameRoom.find({ status: "waiting" })
         .select("_id title")
         .sort({ createdAt: -1 });
 
       io.emit("freeRooms", rooms);
+      io.to(newroom._id.toString()).emit("roomCreated", {
+        roomId: newroom._id,
+      });
     });
 
     socket.on("getFreeRooms", async () => {
@@ -67,8 +68,7 @@ module.exports = function (io) {
         { _id: id },
         { $set: { status: "ongoing" } }
       );
-      console.log("eeeeeeeee");
-      console.log("roooooooooms", socket.rooms);
+
       io.to(id.toString()).emit("roomJoined", { id: id.toString() });
     });
 
@@ -77,7 +77,7 @@ module.exports = function (io) {
       const room = await MemoryGameRoom.findById({ _id: id });
 
       // console.log(room.cardsList[index]);
-      io.to(id).emit("revealedCard", { src: room.cardsList[index], index });
+      io.to(id).emit("revealedCard", { src: room.cardsList[index].src, index });
     });
 
     socket.on("disconnect", () => {
