@@ -7,26 +7,23 @@ module.exports = function (io) {
 
     socket.on("createRoom", async (data) => {
       const cardImages = [
-        { src: "imageone", id: 0, matched: false },
-        { src: "imagetwo", id: 0, matched: false },
-        { src: "imagethree", id: 0, matched: false },
-        { src: "imagefour", id: 0, matched: false },
-        { src: "imagefive", id: 0, matched: false },
-        { src: "imagesix", id: 0, matched: false },
-        { src: "imageseven", id: 0, matched: false },
-        { src: "imageeight", id: 0, matched: false },
-        { src: "imageone", id: 0, matched: false },
-        { src: "imagetwo", id: 0, matched: false },
-        { src: "imagethree", id: 0, matched: false },
-        { src: "imagefour", id: 0, matched: false },
-        { src: "imagefive", id: 0, matched: false },
-        { src: "imagesix", id: 0, matched: false },
-        { src: "imageseven", id: 0, matched: false },
-        { src: "imageeight", id: 0, matched: false },
+        { src: "124908271092312193182301239915230", id: 0, matched: false },
+        { src: "124908271092312193182301229915230", id: 0, matched: false },
+        { src: "124908271092332193182301239915230", id: 0, matched: false },
+        { src: "124903271092342193182301239915230", id: 0, matched: false },
+        { src: "124908271092312193182301239915330", id: 0, matched: false },
+        { src: "124908271092312193182301229945230", id: 0, matched: false },
+        { src: "121908271092332193182301239915230", id: 0, matched: false },
+        { src: "124903271092332193182301239915230", id: 0, matched: false },
+        { src: "124908271092312193182301239915230", id: 0, matched: false },
+        { src: "124908271092312193182301229915230", id: 0, matched: false },
+        { src: "124908271092332193182301239915230", id: 0, matched: false },
+        { src: "124903271092342193182301239915230", id: 0, matched: false },
+        { src: "124908271092312193182301239915330", id: 0, matched: false },
+        { src: "124908271092312193182301229945230", id: 0, matched: false },
+        { src: "121908271092332193182301239915230", id: 0, matched: false },
+        { src: "124903271092332193182301239915230", id: 0, matched: false },
       ];
-
-      console.log("eeeeeeeee");
-      console.log("roooooooooms", socket.rooms);
 
       const shuffledCards = cardImages
         .map((item, index) => (item = { ...item, id: Math.random() * 1000 }))
@@ -92,12 +89,14 @@ module.exports = function (io) {
             matched: true,
           };
         }
+
+        await MemoryGameRoom.findByIdAndUpdate({ _id: id }, { ...room });
+
+        io.to(id.toString()).emit("gameInfo", { game: room });
       }
 
-      await MemoryGameRoom.findByIdAndUpdate({ _id: id }, { ...room });
       // console.log(room.cardsList[index]);
       io.to(id).emit("revealedCard", { src: room.cardsList[index].src, index });
-      io.to(id.toString()).emit("gameInfo", { game: room });
     });
 
     socket.on("getGameInfo", async (id) => {
