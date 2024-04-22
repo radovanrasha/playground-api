@@ -75,12 +75,29 @@ module.exports = function (io) {
       io.to(id.toString()).emit("gameInfo", { game });
     });
 
-    socket.on("revealCard", async ({ index, id }) => {
+    socket.on("revealCard", async ({ index, id, type, cardOne }) => {
       socket.join(id.toString());
-      const room = await MemoryGameRoom.findById({ _id: id });
+      let room = await MemoryGameRoom.findById({ _id: id });
 
+      if (type === "secondCard") {
+        let cardOneIndex = room.cardsList.findIndex((item, index) => {
+          return item.id === cardOne.id;
+        });
+        let cardTwo = room.cardsList[index];
+
+        if (cardTwo.id !== cardOne.id && cardTwo.src === cardOne.src) {
+          room.cardsList[index] = { ...room.cardsList[index], matched: true };
+          room.cardsList[cardOneIndex] = {
+            ...room.cardsList[cardOneIndex],
+            matched: true,
+          };
+        }
+      }
+
+      await MemoryGameRoom.findByIdAndUpdate({ _id: id }, { ...room });
       // console.log(room.cardsList[index]);
       io.to(id).emit("revealedCard", { src: room.cardsList[index].src, index });
+      io.to(id.toString()).emit("gameInfo", { game: room });
     });
 
     socket.on("getGameInfo", async (id) => {
