@@ -81,6 +81,7 @@ module.exports = function (io) {
           return item.id === cardOne.id;
         });
         let cardTwo = room.cardsList[index];
+        let finished = true;
 
         if (cardTwo.id !== cardOne.id && cardTwo.src === cardOne.src) {
           room.cardsList[index] = { ...room.cardsList[index], matched: true };
@@ -90,12 +91,19 @@ module.exports = function (io) {
           };
         }
 
+        for (let i = 0; i < room.cardsList.length; i++) {
+          if (!room.cardsList[i].matched) {
+            finished = false;
+          }
+        }
+
+        finished ? (room.status = "finished") : (room.status = "ongoing");
+
         await MemoryGameRoom.findByIdAndUpdate({ _id: id }, { ...room });
 
         io.to(id.toString()).emit("gameInfo", { game: room });
       }
 
-      // console.log(room.cardsList[index]);
       io.to(id).emit("revealedCard", { src: room.cardsList[index].src, index });
     });
 
