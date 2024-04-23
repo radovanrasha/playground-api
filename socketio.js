@@ -35,7 +35,7 @@ module.exports = function (io) {
         playerOneScore: 0,
         playerTwoScore: 0,
         cardsList: shuffledCards,
-        nextTurn: "firstPlayer",
+        nextTurn: "playerOne",
         status: "waiting",
       }).save();
       socket.join(newroom._id.toString());
@@ -54,16 +54,19 @@ module.exports = function (io) {
       const rooms = await MemoryGameRoom.find({ status: "waiting" }).select(
         "_id title"
       );
-
+      console.log("e", rooms);
       io.emit("freeRooms", rooms);
     });
 
-    socket.on("joinRoom", async (id) => {
+    socket.on("joinRoom", async (id, player) => {
       socket.join(id.toString());
-      await MemoryGameRoom.findByIdAndUpdate(
-        { _id: id },
-        { $set: { status: "ongoing" } }
-      );
+
+      if (player && player === "playerTwo") {
+        await MemoryGameRoom.findByIdAndUpdate(
+          { _id: id },
+          { $set: { status: "ongoing" } }
+        );
+      }
 
       const game = await MemoryGameRoom.findByIdAndUpdate({ _id: id });
 
@@ -89,6 +92,14 @@ module.exports = function (io) {
             ...room.cardsList[cardOneIndex],
             matched: true,
           };
+
+          room.nextTurn === "playerOne"
+            ? (room.playerOneScore = room.playerOneScore + 1)
+            : (room.playerTwoScore = room.playerTwoScore + 1);
+        } else {
+          room.nextTurn === "playerOne"
+            ? (room.nextTurn = "playerTwo")
+            : (room.nextTurn = "playerOne");
         }
 
         for (let i = 0; i < room.cardsList.length; i++) {
