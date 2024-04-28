@@ -115,7 +115,10 @@ module.exports = function (io) {
         io.to(id.toString()).emit("gameInfo", { game: room });
       }
 
-      io.to(id).emit("revealedCard", { src: room.cardsList[index].src, index });
+      io.to(id.toString()).emit("revealedCard", {
+        src: room.cardsList[index].src,
+        index,
+      });
     });
 
     socket.on("getGameInfo", async (id) => {
