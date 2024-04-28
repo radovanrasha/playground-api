@@ -54,7 +54,7 @@ module.exports = function (io) {
       const rooms = await MemoryGameRoom.find({ status: "waiting" }).select(
         "_id title"
       );
-      console.log("e", rooms);
+      // console.log("e", rooms);
       io.emit("freeRooms", rooms);
     });
 
