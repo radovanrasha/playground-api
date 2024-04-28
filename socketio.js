@@ -109,22 +109,33 @@ module.exports = function (io) {
         }
 
         finished ? (room.status = "finished") : (room.status = "ongoing");
-
-        await MemoryGameRoom.findByIdAndUpdate({ _id: id }, { ...room });
-
-        io.to(id.toString()).emit("gameInfo", { game: room });
       }
 
-      io.to(id.toString()).emit("revealedCard", {
-        src: room.cardsList[index].src,
-        index,
-      });
+      room.cardsList[index] = { ...room.cardsList[index], revealed: true };
+
+      await MemoryGameRoom.findByIdAndUpdate({ _id: id }, { ...room });
+
+      io.to(id.toString()).emit("gameInfo", { game: room });
     });
 
     socket.on("getGameInfo", async (id) => {
-      const game = await MemoryGameRoom.findByIdAndUpdate({ _id: id });
+      const game = await MemoryGameRoom.findById({ _id: id });
 
       io.to(id.toString()).emit("gameInfo", { game });
+    });
+
+    socket.on("restartTurn", async ({ id }) => {
+      const game = await MemoryGameRoom.findById({ _id: id });
+
+      for (let i = 0; i < game.cardsList.length; i++) {
+        game.cardsList[i].revealed = false;
+      }
+      // console.log("e");
+      await MemoryGameRoom.findByIdAndUpdate({ _id: id }, { ...game });
+
+      // console.log(gameRes);
+
+      io.to(id.toString()).emit("gameInfo", { game: game });
     });
 
     socket.on("disconnect", () => {
