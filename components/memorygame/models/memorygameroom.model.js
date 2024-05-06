@@ -11,7 +11,10 @@ const memoryGameRoomSchema = new Schema(
     playerTwoScore: { type: Number, default: 0 },
     cardsList: { type: Array },
     nextTurn: { type: String, enum: ["playerOne", "playerTwo"] },
-    status: { type: String, enum: ["waiting", "ongoing", "finished"] },
+    status: {
+      type: String,
+      enum: ["waiting", "ongoing", "finished", "canceled"],
+    },
   },
   { timestamps: true }
 );

@@ -68,7 +68,7 @@ module.exports = function (io) {
         );
       }
 
-      const game = await MemoryGameRoom.findByIdAndUpdate({ _id: id });
+      const game = await MemoryGameRoom.findById({ _id: id });
 
       io.to(id.toString()).emit("roomJoined", { id: id.toString() });
 
@@ -136,6 +136,17 @@ module.exports = function (io) {
       // console.log(gameRes);
 
       io.to(id.toString()).emit("gameInfo", { game: game });
+    });
+
+    socket.on("gameCanceled", async (id) => {
+      await MemoryGameRoom.findByIdAndUpdate(
+        { _id: id },
+        { $set: { status: "canceled" } }
+      );
+
+      const game = await MemoryGameRoom.findById({ _id: id });
+
+      io.to(id.toString()).emit("gameInfo", { game });
     });
 
     socket.on("disconnect", () => {
