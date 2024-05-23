@@ -145,6 +145,7 @@ module.exports = function (io) {
       );
 
       const game = await MemoryGameRoom.findById({ _id: id });
+      console.log("game canceled");
 
       io.to(id.toString()).emit("gameInfo", { game });
     });
