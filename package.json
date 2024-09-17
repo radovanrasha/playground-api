@@ -8,7 +8,9 @@
   },
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy": "pm2 deploy ecosystem.config.js production",
+    "start:prod": "node server.js"
   },
   "keywords": [],
   "author": "radovanrasha",
