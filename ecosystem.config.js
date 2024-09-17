@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "playground-api",
       script: "npm run start:prod",
-      port: 3006,
+      port: 3007,
       time: true,
     },
   ],
