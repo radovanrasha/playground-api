@@ -1,3 +1,4 @@
+const BattleshipRoom = require("./components/battleshipgame/models/battleshipgameroom.model");
 const MemoryGameRoom = require("./components/memorygame/models/memorygameroom.model");
 const { v4: uuidv4 } = require("uuid");
 
@@ -5,6 +6,7 @@ module.exports = function (io) {
   io.on("connection", (socket) => {
     console.log("New client connected", socket.id);
 
+    //---------------------START Memory game socket events START---------------------
     socket.on("createRoom", async (data) => {
       const cardImages = [
         { src: "124908271092312193182301239915230", id: 0, matched: false },
@@ -152,6 +154,34 @@ module.exports = function (io) {
 
     socket.on("disconnect", () => {
       console.log("Client disconnected", socket.id);
+    });
+    //---------------------END Memory game socket events END---------------------
+
+    socket.on("createRoomBattleship", async (data) => {
+      const newroom = await new BattleshipRoom({
+        title: data.title,
+        password: data.password ? data.password : null,
+        nextTurn: "playerOne",
+        status: "initialized",
+      }).save();
+      socket.join(newroom._id.toString());
+
+      let rooms = await BattleshipRoom.find({ status: "initialized" })
+        .select("_id title")
+        .sort({ createdAt: -1 });
+
+      io.emit("freeRoomsBattleship", rooms);
+      io.to(newroom._id.toString()).emit("roomCreatedBattleship", {
+        roomId: newroom._id,
+      });
+    });
+
+    socket.on("getFreeRoomsBattleship", async () => {
+      const rooms = await BattleshipRoom.find({ status: "initialized" }).select(
+        "_id title"
+      );
+
+      io.emit("freeRoomsBattleship", rooms);
     });
   });
 };
