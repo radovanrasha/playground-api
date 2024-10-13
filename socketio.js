@@ -147,15 +147,14 @@ module.exports = function (io) {
       );
 
       const game = await MemoryGameRoom.findById({ _id: id });
-      console.log("game canceled");
+      // console.log("game canceled");
 
       io.to(id.toString()).emit("gameInfo", { game });
     });
 
-    socket.on("disconnect", () => {
-      console.log("Client disconnected", socket.id);
-    });
     //---------------------END Memory game socket events END---------------------
+
+    //---------------------START Battleship game socket events START---------------------
 
     socket.on("createRoomBattleship", async (data) => {
       const newroom = await new BattleshipRoom({
@@ -182,6 +181,47 @@ module.exports = function (io) {
       );
 
       io.emit("freeRoomsBattleship", rooms);
+    });
+
+    socket.on("joinRoomBattleship", async (id, player) => {
+      socket.join(id.toString());
+
+      const game = await BattleshipRoom.findById({ _id: id });
+
+      if (player && player === "playerTwo" && game.status === "initialized") {
+        game.status = "waiting";
+        game.save();
+      }
+
+      io.to(id.toString()).emit("gameInfoBattleship", { game });
+    });
+
+    socket.on("playerReadyBattleship", async (id, player) => {
+      if (player && player === "playerOne") {
+        await BattleshipRoom.findByIdAndUpdate(
+          { _id: id },
+          { firstPlayerReady: true }
+        );
+      } else if (player && player === "playerTwo") {
+        await BattleshipRoom.findByIdAndUpdate(
+          { _id: id },
+          { secondPlayerReady: true }
+        );
+      }
+
+      const game = await BattleshipRoom.findById({ _id: id });
+
+      if (game.firstPlayerReady && game.secondPlayerReady) {
+        game.status = "ongoing";
+        game.save();
+      }
+
+      io.to(id.toString()).emit("gameInfoBattleship", { game });
+    });
+
+    //-----------------------------------------------------------------------------------
+    socket.on("disconnect", () => {
+      console.log("Client disconnected", socket.id);
     });
   });
 };
