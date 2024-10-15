@@ -162,6 +162,12 @@ module.exports = function (io) {
         password: data.password ? data.password : null,
         nextTurn: "playerOne",
         status: "initialized",
+        firstPlayerBoard: Array(10)
+          .fill(null)
+          .map(() => Array(10).fill()),
+        firstPlayerBoardRevealed: Array(10)
+          .fill(null)
+          .map(() => Array(10).fill()),
       }).save();
       socket.join(newroom._id.toString());
 
@@ -190,22 +196,28 @@ module.exports = function (io) {
 
       if (player && player === "playerTwo" && game.status === "initialized") {
         game.status = "waiting";
-        game.save();
+        game.secondPlayerBoard = Array(10)
+          .fill(null)
+          .map(() => Array(10).fill());
+        game.secondPlayerBoardRevealed = Array(10)
+          .fill(null)
+          .map(() => Array(10).fill());
+        await game.save();
       }
 
       io.to(id.toString()).emit("gameInfoBattleship", { game });
     });
 
-    socket.on("playerReadyBattleship", async (id, player) => {
+    socket.on("playerReadyBattleship", async (id, player, board) => {
       if (player && player === "playerOne") {
         await BattleshipRoom.findByIdAndUpdate(
           { _id: id },
-          { firstPlayerReady: true }
+          { firstPlayerReady: true, firstPlayerBoard: board }
         );
       } else if (player && player === "playerTwo") {
         await BattleshipRoom.findByIdAndUpdate(
           { _id: id },
-          { secondPlayerReady: true }
+          { secondPlayerReady: true, secondPlayerBoard: board }
         );
       }
 
@@ -213,12 +225,53 @@ module.exports = function (io) {
 
       if (game.firstPlayerReady && game.secondPlayerReady) {
         game.status = "ongoing";
-        game.save();
+        await game.save();
       }
 
       io.to(id.toString()).emit("gameInfoBattleship", { game });
     });
 
+    socket.on(
+      "clickOnBoardBattleship",
+      async (id, player, rowIndex, colIndex) => {
+        const game = await BattleshipRoom.findById({ _id: id });
+
+        if (player === "playerOne") {
+          if (game.secondPlayerBoard[rowIndex][colIndex]) {
+            game.secondPlayerBoardRevealed[rowIndex][colIndex] = "X";
+            game.nextTurn =
+              game.nextTurn === "playerTwo" ? "playerTwo" : "playerOne";
+          } else {
+            game.secondPlayerBoardRevealed[rowIndex][colIndex] = "O";
+            game.nextTurn =
+              game.nextTurn === "playerOne" ? "playerTwo" : "playerOne";
+          }
+        } else if (player === "playerTwo") {
+          if (game.firstPlayerBoard[rowIndex][colIndex]) {
+            game.firstPlayerBoardRevealed[rowIndex][colIndex] = "X";
+            game.nextTurn =
+              game.nextTurn === "playerTwo" ? "playerTwo" : "playerOne";
+          } else {
+            game.firstPlayerBoardRevealed[rowIndex][colIndex] = "O";
+            game.nextTurn =
+              game.nextTurn === "playerOne" ? "playerTwo" : "playerOne";
+          }
+        }
+
+        await BattleshipRoom.findByIdAndUpdate(
+          { _id: id },
+          {
+            secondPlayerBoardRevealed: game.secondPlayerBoardRevealed,
+            firstPlayerBoardRevealed: game.firstPlayerBoardRevealed,
+            nextTurn: game.nextTurn,
+          }
+        );
+
+        const gameRes = await BattleshipRoom.findById({ _id: id });
+
+        io.to(id.toString()).emit("gameInfoBattleship", { game: gameRes });
+      }
+    );
     //-----------------------------------------------------------------------------------
     socket.on("disconnect", () => {
       console.log("Client disconnected", socket.id);

@@ -10,6 +10,10 @@ const BattleshipRoomSchema = new Schema(
     nextTurn: { type: String, enum: ["playerOne", "playerTwo"] },
     firstPlayerReady: { type: Boolean },
     secondPlayerReady: { type: Boolean },
+    firstPlayerBoard: { type: Array },
+    secondPlayerBoard: { type: Array },
+    firstPlayerBoardRevealed: { type: Array },
+    secondPlayerBoardRevealed: { type: Array },
     status: {
       type: String,
       enum: ["initialized", "waiting", "ongoing", "finished", "canceled"],
