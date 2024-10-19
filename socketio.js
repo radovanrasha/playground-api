@@ -235,6 +235,8 @@ module.exports = function (io) {
       "clickOnBoardBattleship",
       async (id, player, rowIndex, colIndex) => {
         const game = await BattleshipRoom.findById({ _id: id });
+        let countHitsPlayerOne = 0;
+        let countHitsPlayerTwo = 0;
 
         if (player === "playerOne") {
           if (game.secondPlayerBoard[rowIndex][colIndex]) {
@@ -246,6 +248,16 @@ module.exports = function (io) {
             game.nextTurn =
               game.nextTurn === "playerOne" ? "playerTwo" : "playerOne";
           }
+
+          game.secondPlayerBoardRevealed.forEach((row) => {
+            row.forEach((item) => {
+              if (item === "X") {
+                countHitsPlayerOne++;
+              }
+            });
+          });
+
+          game.firstPlayerScore = countHitsPlayerOne;
         } else if (player === "playerTwo") {
           if (game.firstPlayerBoard[rowIndex][colIndex]) {
             game.firstPlayerBoardRevealed[rowIndex][colIndex] = "X";
@@ -256,6 +268,20 @@ module.exports = function (io) {
             game.nextTurn =
               game.nextTurn === "playerOne" ? "playerTwo" : "playerOne";
           }
+
+          game.firstPlayerBoardRevealed.forEach((row) => {
+            row.forEach((item) => {
+              if (item === "X") {
+                countHitsPlayerTwo++;
+              }
+            });
+          });
+
+          game.secondPlayerScore = countHitsPlayerTwo;
+        }
+
+        if (countHitsPlayerOne === 17 || countHitsPlayerTwo === 17) {
+          game.status = "finished";
         }
 
         await BattleshipRoom.findByIdAndUpdate(
@@ -264,6 +290,9 @@ module.exports = function (io) {
             secondPlayerBoardRevealed: game.secondPlayerBoardRevealed,
             firstPlayerBoardRevealed: game.firstPlayerBoardRevealed,
             nextTurn: game.nextTurn,
+            firstPlayerScore: game.firstPlayerScore,
+            secondPlayerScore: game.secondPlayerScore,
+            status: game.status,
           }
         );
 
