@@ -1,3 +1,4 @@
+const QRCode = require("qrcode");
 const BattleshipRoom = require("./components/battleshipgame/models/battleshipgameroom.model");
 const MemoryGameRoom = require("./components/memorygame/models/memorygameroom.model");
 const { v4: uuidv4 } = require("uuid");
@@ -174,6 +175,15 @@ module.exports = function (io) {
       let rooms = await BattleshipRoom.find({ status: "initialized" })
         .select("_id title")
         .sort({ createdAt: -1 });
+
+      const qrCodeBase64 = await QRCode.toDataURL(
+        `https://playground.radovanrasha.com/battleship-multiplayer/${newroom._id.toString()}?player=playerTwo`
+      );
+
+      await BattleshipRoom.findByIdAndUpdate(
+        { _id: newroom._id },
+        { qrcode: qrCodeBase64 }
+      );
 
       io.emit("freeRoomsBattleship", rooms);
       io.to(newroom._id.toString()).emit("roomCreatedBattleship", {

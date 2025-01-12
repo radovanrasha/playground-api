@@ -6,6 +6,7 @@ const BattleshipRoomSchema = new Schema(
   {
     id: { type: String },
     title: { type: String },
+    qrcode: { type: String },
     password: { type: String },
     nextTurn: { type: String, enum: ["playerOne", "playerTwo"] },
 
