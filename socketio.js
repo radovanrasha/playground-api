@@ -319,7 +319,6 @@ module.exports = function (io) {
       const newroom = await new hangmangameroomModel({
         title: data.title,
         password: data.password ? data.password : null,
-        nextTurn: "playerOne",
         status: "initialized",
         rounds: [
           {
@@ -425,16 +424,61 @@ module.exports = function (io) {
         lastRound.missed += 1;
       }
 
+      const termGuessed = term.every(
+        (value, index) => value === newMaskedTerm[index]
+      );
+
+      const isRoundOver = lastRound.missed === 6 || termGuessed;
+
+      if (termGuessed) {
+        if (lastRound.termSetter === "playerOne") {
+          game.playerTwoScore += 1;
+        } else if (lastRound.termSetter === "playerTwo") {
+          game.playerOneScore += 1;
+        }
+      } else if (isRoundOver && !termGuessed) {
+        if (lastRound.termSetter === "playerOne") {
+          game.playerOneScore += 1;
+        } else if (lastRound.termSetter === "playerTwo") {
+          game.playerTwoScore += 1;
+        }
+      }
+
+      if (game.playerOneScore === 3 || game.playerTwoScore === 3) {
+        game.status = 'finished'
+      }
+
       lastRound.maskedTerm = newMaskedTerm;
 
       currentRounds[game.rounds.length - 1] = lastRound;
 
-      await hangmangameroomModel.findByIdAndUpdate(
+      if (isRoundOver) {
+        lastRound.status = "ended";
+
+        currentRounds.push({
+          termSetter:
+            lastRound.termSetter === "playerTwo" ? "playerOne" : "playerTwo",
+          status: "choosing_term",
+        });
+      }
+
+      const gameRes = await hangmangameroomModel.findByIdAndUpdate(
         { _id: id },
-        { $set: { rounds: currentRounds } }
+        {
+          $set: {
+            playerOneScore: game.playerOneScore,
+            playerTwoScore: game.playerTwoScore,
+            rounds: currentRounds,
+            status: game.status,
+          },
+        },
+        { new: true }
       );
 
-      io.to(id.toString()).emit("gameInfoHangman", { game });
+      io.to(id.toString()).emit("gameInfoHangman", {
+        game: gameRes,
+        isRoundOver,
+      });
     });
 
     socket.on("gameCanceledHangman", async (id) => {
