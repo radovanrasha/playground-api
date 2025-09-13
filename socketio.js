@@ -394,7 +394,7 @@ module.exports = function (io) {
 
     socket.on("handleGuessHangman", async (id, player, letter) => {
       socket.join(id.toString());
-
+      let showPopupWithSolution = false;
       const game = await hangmangameroomModel.findById({ _id: id });
 
       let currentRounds = game.rounds;
@@ -445,12 +445,16 @@ module.exports = function (io) {
       }
 
       if (game.playerOneScore === 3 || game.playerTwoScore === 3) {
-        game.status = 'finished'
+        game.status = "finished";
       }
 
       lastRound.maskedTerm = newMaskedTerm;
 
       currentRounds[game.rounds.length - 1] = lastRound;
+
+      if (isRoundOver && newMaskedTerm.includes("_")) {
+        showPopupWithSolution = true;
+      }
 
       if (isRoundOver) {
         lastRound.status = "ended";
@@ -478,6 +482,7 @@ module.exports = function (io) {
       io.to(id.toString()).emit("gameInfoHangman", {
         game: gameRes,
         isRoundOver,
+        showPopupWithSolution
       });
     });
 
