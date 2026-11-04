@@ -1,0 +1,24 @@
+# Dependencies (reinstalled inside the image)
+node_modules
+
+# VCS & CI
+.git
+.github
+.gitignore
+
+# Local env & secrets — never bake into an image (.env is read on the VPS)
+.env
+.env.*
+*.pem
+deploy.sh
+server_deploy.sh
+
+# Editor / OS cruft
+.DS_Store
+npm-debug.log*
+
+# Docs and local deploy configs (not needed in the image)
+*.md
+ecosystem.config.js
+docker-compose.yml
+deploy

@@ -1,0 +1,22 @@
+# Production compose file — lives on the VPS and is refreshed on every deploy.
+# It does NOT build anything: it pulls the prebuilt image from GHCR (the CI
+# pipeline builds & pushes it).
+#
+# network_mode: host — server.js connects to MongoDB at 127.0.0.1:27017, the
+# Mongo that already runs on the VPS. With host networking 127.0.0.1 inside
+# the container IS the VPS, so the existing database keeps working as is.
+# The API listens directly on the VPS at port ${PORT} (3007, same as the old
+# pm2 setup); nginx on the host reverse-proxies the API domain to it.
+services:
+  api:
+    image: ghcr.io/radovanrasha/playground-api:latest
+    container_name: playground-api
+    restart: unless-stopped
+    network_mode: host
+    # Secrets such as JWT_SECRET live in ~/playground-api/.env on the VPS.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-3007}

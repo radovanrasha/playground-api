@@ -1,7 +1,7 @@
 const QRCode = require("qrcode");
 const BattleshipRoom = require("./components/battleshipgame/models/battleshipgameroom.model");
 const MemoryGameRoom = require("./components/memorygame/models/memorygameroom.model");
-const { v4: uuidv4 } = require("uuid");
+const hangmangameroomModel = require("./components/hangman/models/hangmangameroom.model");
 
 module.exports = function (io) {
   io.on("connection", (socket) => {
@@ -311,6 +311,188 @@ module.exports = function (io) {
         io.to(id.toString()).emit("gameInfoBattleship", { game: gameRes });
       }
     );
+
+    //---------------------END Battleship game socket events END---------------------
+
+    //---------------------START Hangman game socket events START---------------------
+    socket.on("createRoomHangman", async (data) => {
+      const newroom = await new hangmangameroomModel({
+        title: data.title,
+        password: data.password ? data.password : null,
+        status: "initialized",
+        rounds: [
+          {
+            roundNumber: 1,
+            termSetter: "playerOne",
+            status: "choosing_term",
+          },
+        ],
+      }).save();
+      socket.join(newroom._id.toString());
+
+      let rooms = await hangmangameroomModel
+        .find({ status: "initialized" })
+        .select("_id title")
+        .sort({ createdAt: -1 });
+
+      const qrCodeBase64 = await QRCode.toDataURL(
+        `https://playground.radovanrasha.com/hangman-multiplayer/${newroom._id.toString()}?player=playerTwo`
+      );
+
+      await hangmangameroomModel.findByIdAndUpdate(
+        { _id: newroom._id },
+        { qrcode: qrCodeBase64 }
+      );
+
+      io.emit("freeRoomsHangman", rooms);
+      io.to(newroom._id.toString()).emit("roomCreatedHangman", {
+        roomId: newroom._id,
+      });
+    });
+
+    socket.on("joinRoomHangman", async (id, player) => {
+      socket.join(id.toString());
+
+      if (player && player === "playerTwo") {
+        await hangmangameroomModel.findByIdAndUpdate(
+          { _id: id },
+          { $set: { status: "ongoing" } }
+        );
+      }
+
+      const game = await hangmangameroomModel.findById({ _id: id });
+
+      io.to(id.toString()).emit("gameInfoHangman", { game });
+    });
+
+    socket.on("enteredTermHangman", async (id, player, enteredTerm) => {
+      socket.join(id.toString());
+
+      const game = await hangmangameroomModel.findById({ _id: id });
+
+      let currentRounds = game.rounds;
+
+      // console.log(game.rounds[game.rounds.length - 1]);
+
+      currentRounds[game.rounds.length - 1] = {
+        ...currentRounds[game.rounds[game.rounds.length - 1]],
+        termSetter: player,
+        term: enteredTerm.split(""),
+        maskedTerm: enteredTerm.replace(/\p{L}/gu, "_").split(""),
+        status: "in_progress",
+      };
+
+      // console.log(currentRounds);
+
+      await hangmangameroomModel.findByIdAndUpdate(
+        { _id: id },
+        { $set: { rounds: currentRounds } }
+      );
+
+      io.to(id.toString()).emit("gameInfoHangman", { game });
+    });
+
+    socket.on("handleGuessHangman", async (id, player, letter) => {
+      socket.join(id.toString());
+
+      const game = await hangmangameroomModel.findById({ _id: id });
+
+      let currentRounds = game.rounds;
+
+      let lastRound = game.rounds[game.rounds.length - 1];
+
+      const term = game.rounds[game.rounds.length - 1].term;
+      const maskedTerm = game.rounds[game.rounds.length - 1].maskedTerm;
+
+      const newMaskedTerm = term.map((originalLetter, index) => {
+        if (originalLetter.toLowerCase() === letter.toLowerCase()) {
+          return originalLetter;
+        } else {
+          return maskedTerm[index];
+        }
+      });
+
+      const isGuessCorrect = term.some(
+        (originalLetter) =>
+          originalLetter.toLowerCase() === letter.toLowerCase()
+      );
+
+      lastRound.guesses.push(letter);
+
+      if (!isGuessCorrect) {
+        lastRound.incorrectGuesses.push(letter);
+        lastRound.missed += 1;
+      }
+
+      const termGuessed = term.every(
+        (value, index) => value === newMaskedTerm[index]
+      );
+
+      const isRoundOver = lastRound.missed === 6 || termGuessed;
+
+      if (termGuessed) {
+        if (lastRound.termSetter === "playerOne") {
+          game.playerTwoScore += 1;
+        } else if (lastRound.termSetter === "playerTwo") {
+          game.playerOneScore += 1;
+        }
+      } else if (isRoundOver && !termGuessed) {
+        if (lastRound.termSetter === "playerOne") {
+          game.playerOneScore += 1;
+        } else if (lastRound.termSetter === "playerTwo") {
+          game.playerTwoScore += 1;
+        }
+      }
+
+      if (game.playerOneScore === 3 || game.playerTwoScore === 3) {
+        game.status = 'finished'
+      }
+
+      lastRound.maskedTerm = newMaskedTerm;
+
+      currentRounds[game.rounds.length - 1] = lastRound;
+
+      if (isRoundOver) {
+        lastRound.status = "ended";
+
+        currentRounds.push({
+          termSetter:
+            lastRound.termSetter === "playerTwo" ? "playerOne" : "playerTwo",
+          status: "choosing_term",
+        });
+      }
+
+      const gameRes = await hangmangameroomModel.findByIdAndUpdate(
+        { _id: id },
+        {
+          $set: {
+            playerOneScore: game.playerOneScore,
+            playerTwoScore: game.playerTwoScore,
+            rounds: currentRounds,
+            status: game.status,
+          },
+        },
+        { new: true }
+      );
+
+      io.to(id.toString()).emit("gameInfoHangman", {
+        game: gameRes,
+        isRoundOver,
+      });
+    });
+
+    socket.on("gameCanceledHangman", async (id) => {
+      await hangmangameroomModel.findByIdAndUpdate(
+        { _id: id },
+        { $set: { status: "canceled" } }
+      );
+
+      const game = await hangmangameroomModel.findById({ _id: id });
+
+      io.to(id.toString()).emit("gameInfoHangman", { game });
+    });
+
+    //---------------------END Hangman game socket events END---------------------
     //-----------------------------------------------------------------------------------
     socket.on("disconnect", () => {
       console.log("Client disconnected", socket.id);
