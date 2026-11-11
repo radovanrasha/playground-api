@@ -16,6 +16,9 @@ const roundSchema = new Schema({
 
   incorrectGuesses: { type: [String], default: [] },
 
+  // set when the round ends: the guesser found the term, or ran out of tries
+  result: { type: String, enum: ["guessed", "hanged"] },
+
   status: {
     type: String,
     enum: ["choosing_term", "in_progress", "ended"],

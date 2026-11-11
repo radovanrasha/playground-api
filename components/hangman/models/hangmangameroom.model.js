@@ -7,6 +7,7 @@ const hangmanGameRoomSchema = new Schema(
   {
     title: { type: String },
     password: { type: String },
+    qrcode: { type: String },
 
     playerOneScore: { type: Number, default: 0 },
     playerTwoScore: { type: Number, default: 0 },

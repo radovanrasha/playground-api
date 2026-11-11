@@ -3,6 +3,67 @@ const BattleshipRoom = require("./components/battleshipgame/models/battleshipgam
 const MemoryGameRoom = require("./components/memorygame/models/memorygameroom.model");
 const hangmangameroomModel = require("./components/hangman/models/hangmangameroom.model");
 
+//---------------------Hangman helpers---------------------
+const HANGMAN_MAX_MISSES = 6;
+const HANGMAN_WINNING_SCORE = 3;
+// only the letters on the frontend keyboard (Serbian Latin alphabet)
+const HANGMAN_LETTER = /^[A-ZČĆŽŠĐ]$/;
+const HANGMAN_TERM = /^[A-ZČĆŽŠĐ ]+$/;
+
+// a failing handler must not crash the server (unhandled rejection)
+const safe =
+  (handler) =>
+  async (...args) => {
+    try {
+      await handler(...args);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+const findHangmanGame = (id) =>
+  hangmangameroomModel.findById(id).catch(() => null);
+
+// uppercased and single-spaced, or null when the term can't be played
+const normalizeHangmanTerm = (value) => {
+  const term = String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+
+  if (term.length < 2 || term.length > 30 || !HANGMAN_TERM.test(term)) {
+    return null;
+  }
+
+  return term;
+};
+
+// the term of a round still in play is hidden so the guesser can't read it
+const toPublicHangmanGame = (game) => {
+  const data = game.toObject();
+
+  data.rounds = data.rounds.map((round) =>
+    round.status === "ended" ? round : { ...round, term: [] }
+  );
+
+  return data;
+};
+
+const emitHangmanGame = (io, game) => {
+  io.to(game._id.toString()).emit("gameInfoHangman", {
+    game: toPublicHangmanGame(game),
+  });
+};
+
+const emitFreeRoomsHangman = async (target) => {
+  const rooms = await hangmangameroomModel
+    .find({ status: "initialized" })
+    .select("_id title")
+    .sort({ createdAt: -1 });
+
+  target.emit("freeRoomsHangman", rooms);
+};
+
 module.exports = function (io) {
   io.on("connection", (socket) => {
     console.log("New client connected", socket.id);
@@ -315,182 +376,164 @@ module.exports = function (io) {
     //---------------------END Battleship game socket events END---------------------
 
     //---------------------START Hangman game socket events START---------------------
-    socket.on("createRoomHangman", async (data) => {
-      const newroom = await new hangmangameroomModel({
-        title: data.title,
-        password: data.password ? data.password : null,
-        status: "initialized",
-        rounds: [
-          {
-            roundNumber: 1,
-            termSetter: "playerOne",
-            status: "choosing_term",
-          },
-        ],
-      }).save();
-      socket.join(newroom._id.toString());
+    socket.on(
+      "createRoomHangman",
+      safe(async (data) => {
+        const newroom = await new hangmangameroomModel({
+          title: data.title,
+          password: data.password ? data.password : null,
+          status: "initialized",
+          rounds: [
+            {
+              roundNumber: 1,
+              termSetter: "playerOne",
+              status: "choosing_term",
+            },
+          ],
+        }).save();
+        socket.join(newroom._id.toString());
 
-      let rooms = await hangmangameroomModel
-        .find({ status: "initialized" })
-        .select("_id title")
-        .sort({ createdAt: -1 });
-
-      const qrCodeBase64 = await QRCode.toDataURL(
-        `https://playground.radovanrasha.com/hangman-multiplayer/${newroom._id.toString()}?player=playerTwo`
-      );
-
-      await hangmangameroomModel.findByIdAndUpdate(
-        { _id: newroom._id },
-        { qrcode: qrCodeBase64 }
-      );
-
-      io.emit("freeRoomsHangman", rooms);
-      io.to(newroom._id.toString()).emit("roomCreatedHangman", {
-        roomId: newroom._id,
-      });
-    });
-
-    socket.on("joinRoomHangman", async (id, player) => {
-      socket.join(id.toString());
-
-      if (player && player === "playerTwo") {
-        await hangmangameroomModel.findByIdAndUpdate(
-          { _id: id },
-          { $set: { status: "ongoing" } }
+        newroom.qrcode = await QRCode.toDataURL(
+          `https://playground.radovanrasha.com/hangman-multiplayer/${newroom._id.toString()}?player=playerTwo`
         );
-      }
+        await newroom.save();
 
-      const game = await hangmangameroomModel.findById({ _id: id });
+        await emitFreeRoomsHangman(io);
+        socket.emit("roomCreatedHangman", { roomId: newroom._id });
+      })
+    );
 
-      io.to(id.toString()).emit("gameInfoHangman", { game });
-    });
+    socket.on(
+      "getFreeRoomsHangman",
+      safe(async () => {
+        await emitFreeRoomsHangman(socket);
+      })
+    );
 
-    socket.on("enteredTermHangman", async (id, player, enteredTerm) => {
-      socket.join(id.toString());
+    socket.on(
+      "joinRoomHangman",
+      safe(async (id, player) => {
+        const game = await findHangmanGame(id);
+        if (!game) return;
 
-      const game = await hangmangameroomModel.findById({ _id: id });
+        socket.join(id.toString());
 
-      let currentRounds = game.rounds;
+        // the second player starts the game and takes the room off the list
+        if (player === "playerTwo" && game.status === "initialized") {
+          game.status = "ongoing";
+          await game.save();
+          await emitFreeRoomsHangman(io);
+        }
 
-      // console.log(game.rounds[game.rounds.length - 1]);
+        emitHangmanGame(io, game);
+      })
+    );
 
-      currentRounds[game.rounds.length - 1] = {
-        ...currentRounds[game.rounds[game.rounds.length - 1]],
-        termSetter: player,
-        term: enteredTerm.split(""),
-        maskedTerm: enteredTerm.replace(/\p{L}/gu, "_").split(""),
-        status: "in_progress",
-      };
+    socket.on(
+      "enteredTermHangman",
+      safe(async (id, player, enteredTerm) => {
+        const game = await findHangmanGame(id);
+        if (!game || game.status !== "ongoing") return;
 
-      // console.log(currentRounds);
+        const round = game.rounds[game.rounds.length - 1];
+        if (round.status !== "choosing_term" || round.termSetter !== player) {
+          return;
+        }
 
-      await hangmangameroomModel.findByIdAndUpdate(
-        { _id: id },
-        { $set: { rounds: currentRounds } }
-      );
+        const term = normalizeHangmanTerm(enteredTerm);
+        if (!term) {
+          socket.emit(
+            "hangmanError",
+            "Use 2-30 letters from the keyboard and spaces."
+          );
+          return;
+        }
 
-      io.to(id.toString()).emit("gameInfoHangman", { game });
-    });
+        round.term = term.split("");
+        round.maskedTerm = term.split("").map((char) => (char === " " ? " " : "_"));
+        round.status = "in_progress";
+        await game.save();
 
-    socket.on("handleGuessHangman", async (id, player, letter) => {
-      socket.join(id.toString());
+        emitHangmanGame(io, game);
+      })
+    );
 
-      const game = await hangmangameroomModel.findById({ _id: id });
+    socket.on(
+      "handleGuessHangman",
+      safe(async (id, player, letter) => {
+        const game = await findHangmanGame(id);
+        if (!game || game.status !== "ongoing") return;
 
-      let currentRounds = game.rounds;
+        const round = game.rounds[game.rounds.length - 1];
+        const guesser = round.termSetter === "playerOne" ? "playerTwo" : "playerOne";
+        const guess = String(letter || "").toUpperCase();
 
-      let lastRound = game.rounds[game.rounds.length - 1];
+        if (round.status !== "in_progress" || player !== guesser) return;
+        if (!HANGMAN_LETTER.test(guess) || round.guesses.includes(guess)) return;
 
-      const term = game.rounds[game.rounds.length - 1].term;
-      const maskedTerm = game.rounds[game.rounds.length - 1].maskedTerm;
+        round.guesses.push(guess);
 
-      const newMaskedTerm = term.map((originalLetter, index) => {
-        if (originalLetter.toLowerCase() === letter.toLowerCase()) {
-          return originalLetter;
+        if (round.term.includes(guess)) {
+          round.maskedTerm = round.term.map((char, index) =>
+            char === guess ? char : round.maskedTerm[index]
+          );
         } else {
-          return maskedTerm[index];
+          round.incorrectGuesses.push(guess);
+          round.missed += 1;
         }
-      });
 
-      const isGuessCorrect = term.some(
-        (originalLetter) =>
-          originalLetter.toLowerCase() === letter.toLowerCase()
-      );
+        const termGuessed = !round.maskedTerm.includes("_");
+        const hanged = round.missed >= HANGMAN_MAX_MISSES;
 
-      lastRound.guesses.push(letter);
+        if (termGuessed || hanged) {
+          round.status = "ended";
+          round.result = termGuessed ? "guessed" : "hanged";
 
-      if (!isGuessCorrect) {
-        lastRound.incorrectGuesses.push(letter);
-        lastRound.missed += 1;
-      }
+          // the guesser scores for a found term, the setter when the guesser hangs
+          const scorer = termGuessed ? guesser : round.termSetter;
+          if (scorer === "playerOne") {
+            game.playerOneScore += 1;
+          } else {
+            game.playerTwoScore += 1;
+          }
 
-      const termGuessed = term.every(
-        (value, index) => value === newMaskedTerm[index]
-      );
-
-      const isRoundOver = lastRound.missed === 6 || termGuessed;
-
-      if (termGuessed) {
-        if (lastRound.termSetter === "playerOne") {
-          game.playerTwoScore += 1;
-        } else if (lastRound.termSetter === "playerTwo") {
-          game.playerOneScore += 1;
+          if (
+            game.playerOneScore >= HANGMAN_WINNING_SCORE ||
+            game.playerTwoScore >= HANGMAN_WINNING_SCORE
+          ) {
+            game.status = "finished";
+          } else {
+            // players swap roles every round
+            game.roundNumber += 1;
+            game.rounds.push({
+              roundNumber: game.roundNumber,
+              termSetter: guesser,
+              status: "choosing_term",
+            });
+          }
         }
-      } else if (isRoundOver && !termGuessed) {
-        if (lastRound.termSetter === "playerOne") {
-          game.playerOneScore += 1;
-        } else if (lastRound.termSetter === "playerTwo") {
-          game.playerTwoScore += 1;
+
+        await game.save();
+
+        emitHangmanGame(io, game);
+      })
+    );
+
+    socket.on(
+      "gameCanceledHangman",
+      safe(async (id) => {
+        const game = await findHangmanGame(id);
+        if (!game || game.status === "finished" || game.status === "canceled") {
+          return;
         }
-      }
 
-      if (game.playerOneScore === 3 || game.playerTwoScore === 3) {
-        game.status = 'finished'
-      }
+        game.status = "canceled";
+        await game.save();
 
-      lastRound.maskedTerm = newMaskedTerm;
-
-      currentRounds[game.rounds.length - 1] = lastRound;
-
-      if (isRoundOver) {
-        lastRound.status = "ended";
-
-        currentRounds.push({
-          termSetter:
-            lastRound.termSetter === "playerTwo" ? "playerOne" : "playerTwo",
-          status: "choosing_term",
-        });
-      }
-
-      const gameRes = await hangmangameroomModel.findByIdAndUpdate(
-        { _id: id },
-        {
-          $set: {
-            playerOneScore: game.playerOneScore,
-            playerTwoScore: game.playerTwoScore,
-            rounds: currentRounds,
-            status: game.status,
-          },
-        },
-        { new: true }
-      );
-
-      io.to(id.toString()).emit("gameInfoHangman", {
-        game: gameRes,
-        isRoundOver,
-      });
-    });
-
-    socket.on("gameCanceledHangman", async (id) => {
-      await hangmangameroomModel.findByIdAndUpdate(
-        { _id: id },
-        { $set: { status: "canceled" } }
-      );
-
-      const game = await hangmangameroomModel.findById({ _id: id });
-
-      io.to(id.toString()).emit("gameInfoHangman", { game });
-    });
+        emitHangmanGame(io, game);
+        await emitFreeRoomsHangman(io);
+      })
+    );
 
     //---------------------END Hangman game socket events END---------------------
     //-----------------------------------------------------------------------------------
